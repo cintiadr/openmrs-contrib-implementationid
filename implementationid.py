@@ -9,14 +9,13 @@ import optparse
 import time
 import sys, MySQLdb, os, string, bcrypt
 
-
 app = Flask(__name__) # create the application instance :)
 
 
 def __getDatabaseConnection(db_host, db_name, db_user, db_passwd):
 	return MySQLdb.connect(db_host, db_user, db_passwd, db_name)
 
-def __logAccessAttempt(dbh, implementationId, passphrase, success):
+def __logAccessAttempt(dbh, implementationId, success):
 	ip = "LOCAL"
 	# TODO
 	# if (os.environ.has_key("REMOTE_ADDR")):
@@ -27,7 +26,7 @@ def __logAccessAttempt(dbh, implementationId, passphrase, success):
 					(ip_address, access_date, access_time, implementation_id, success)
 					VALUES
 					(%s, CURDATE(), CURTIME(), %s, %s)""",
-					(ip, implementationId, passphrase, success))
+					(ip, implementationId, success))
 
 	cursor.close()
 	dbh.commit()
@@ -73,7 +72,7 @@ def post_implementation():
 
 			# no row was found with this implementation id.  they are unique.  insert them into the database
 			if row == None:
-				__logAccessAttempt(dbh, implementationId, passphrase, 1)
+				__logAccessAttempt(dbh, implementationId, 1)
 				cursor = dbh.cursor();
 				hashed_passphrase = bcrypt.hashpw(passphrase, bcrypt.gensalt())
 				cursor.execute("INSERT INTO implementation_id (implementation_id, description, passphrase) VALUES (%s, %s, %s)",
@@ -93,7 +92,8 @@ def post_implementation():
 					abort(403, description="Invalid passphrase")
 
 		except Exception, e:
-			abort(500, description=str(e))
+			app.logger.exception(e)
+			abort(500, description="Unexpected exception: " + str(e))
 
 		# close connection and we're done
 		dbh.close()
