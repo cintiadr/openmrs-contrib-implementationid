@@ -1,5 +1,9 @@
 /docker-compose.yaml
-/db/**
+/db/
 /test/
 README.md
 *.pyc
+.git
+.gitignore
+.dockerignore
+/backups

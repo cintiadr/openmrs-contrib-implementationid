@@ -17,19 +17,24 @@ It's an unauthenticated POST request. It does require `implementationId`, `descr
   - If `implementationId` already exists and passphrase matches, it returns code `200`.
   - If `implementationId` already exists and passphrase doesn't match, it will return an `403` error.
 
-  A log is created for all cases.
+  A log is created for all cases. Passphrase is stored using bcrypt
 
 
 ## Running locally
 
 Make sure to install docker and docker-compose locally.
 ```
+# Check compile errors
+$ python -m py_compile implementationid.py
+
+# Build new docker image
 $ docker-compose build
 
-# Starting database and application in docker
-$ docker-compose up -d
+# Starting database and application in docker containers
+# ctrl+c to stop containers
+$ docker-compose up
 
-# to test application
+# to test application (from another terminal)
 $ curl localhost:8000/ping
 
 # to power off and delete data

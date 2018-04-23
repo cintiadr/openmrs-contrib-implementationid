@@ -3,11 +3,11 @@
 # This python script is meant to be used with the implementationid module.
 # It keeps a record of unique implementation id / passphrase pairs
 
-from flask import Flask
+from flask import Flask, request, abort
 import sys
 import optparse
 import time
-import sys, MySQLdb, os, string
+import sys, MySQLdb, os, string, bcrypt
 
 
 app = Flask(__name__) # create the application instance :)
@@ -40,16 +40,14 @@ def ping():
 @app.route("/tools/implementationid", methods=['POST'])
 def post_implementation():
 
-	implementationId = request.form.getvalue("implementationId", "")
-	description = request.form.getvalue("description", "")
-	passphrase = request.form.getvalue("passphrase", "")
+	implementationId = request.form["implementationId"]
+	description = request.form["description"]
+	passphrase = request.form["passphrase"]
 
 	if implementationId == "" or description == "" or passphrase == "":
-		abort(400)
-		abort(Response('An error occurred while trying to read the implementation id, description, and pass phrase. All values are required.'))
+		abort(400, description='An error occurred while trying to read the implementation id, description, and pass phrase. All values are required.')
 	elif '^' in implementationId or '|' in implementationId:
-		abort(400)
-		abort(Response("The implementation id contains the invalid character: '^|'"))
+		abort(400, description="The implementation id contains the invalid character: '^|'")
 	else:
 		try:
 			db_host = os.environ["DB_HOST"]
@@ -77,26 +75,25 @@ def post_implementation():
 			if row == None:
 				__logAccessAttempt(dbh, implementationId, passphrase, 1)
 				cursor = dbh.cursor();
+				hashed_passphrase = bcrypt.hashpw(passphrase, bcrypt.gensalt())
 				cursor.execute("INSERT INTO implementation_id (implementation_id, description, passphrase) VALUES (%s, %s, %s)",
-								(implementationId, description, passphrase))
+								(implementationId, description, hashed_passphrase))
 				cursor.close();
 				dbh.commit();
 
 				return 'Success creating ' +  description
 			else:
 				# there was a hit, check the passphrase against what was given
-				if row[2] == passphrase:
+				if bcrypt.checkpw(passphrase, row[2]):
 					__logAccessAttempt(dbh, implementationId, 1)
 					return 'Success recovering ' + row[1]
 				else:
 					# invalid passphrase.  Just print the current description
 					__logAccessAttempt(dbh, implementationId, 0)
-					abort(403)
-					abort(Response("Invalid passphrase"))
+					abort(403, description="Invalid passphrase")
 
 		except Exception, e:
-			abort(500)
-			abort(Response(e))
+			abort(500, description=str(e))
 
 		# close connection and we're done
 		dbh.close()
