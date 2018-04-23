@@ -18,7 +18,6 @@ CREATE TABLE `access_log` (
   `access_date` date NOT NULL default '0000-00-00',
   `access_time` time NOT NULL,
   `implementation_id` char(20) NOT NULL,
-  `passphrase` varchar(255) NOT NULL,
   `success` int(1) NOT NULL default '0',
   PRIMARY KEY  (`access_log_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

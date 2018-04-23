@@ -1,0 +1,36 @@
+---
+version: '3'
+services:
+  db:
+    image: mysql:5.6
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysqlfordocker}
+      MYSQL_DATABASE: ${DB_NAME:-implementationid}
+      MYSQL_USER: ${DB_USERNAME:-implid_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-implid_password}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./db:/docker-entrypoint-initdb.d
+    restart: always
+    healthcheck:
+      test: "exit 0"
+
+  implementationid:
+    build:
+      context: .
+    image: openmrs/implementationid:local
+    depends_on:
+      - db
+    environment:
+      DB_HOST: ${DB_HOST:-db}
+      DB_NAME: ${DB_NAME:-implementationid}
+      DB_USERNAME: ${DB_USERNAME:-implid_user}
+      DB_PASSWORD: ${DB_PASSWORD:-implid_password}
+    ports:
+      - 8000:8000
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ping"]
+
+volumes:
+  mysql-data:
