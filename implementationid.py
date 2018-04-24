@@ -16,12 +16,11 @@ def __getDatabaseConnection(db_host, db_name, db_user, db_passwd):
 	return MySQLdb.connect(db_host, db_user, db_passwd, db_name)
 
 def __logAccessAttempt(dbh, implementationId, success, request):
-	ip = "LOCAL"
-
-	if 'X-Forwarded-For' in request.headers:
-		ip = request.headers.getlist("X-Forwarded-For")[0].rpartition(' ')[-1]
+    ip = "LOCAL"
+    if 'X-Forwarded-For' in request.headers:
+	    ip = request.headers.getlist("X-Forwarded-For")[0].rpartition(' ')[-1]
     else:
-		ip = request.remote_addr or 'untrackable'
+        ip = request.remote_addr or 'untrackable'
 
 	cursor = dbh.cursor()
 	cursor.execute("""INSERT INTO access_log
