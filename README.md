@@ -37,6 +37,11 @@ $ docker-compose up
 # to test application (from another terminal)
 $ curl localhost:8000/ping
 
+```
+
+You can open `test/implementationidtest.html` in a browser and submit requests. 
+
+```
 # to power off and delete data
 $ docker-compose down -v
 ```

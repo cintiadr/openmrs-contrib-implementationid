@@ -6,7 +6,7 @@
 from flask import Flask, request, abort
 import sys
 import optparse
-import time
+import time, logging
 import sys, MySQLdb, os, string, bcrypt
 
 app = Flask(__name__) # create the application instance :)
@@ -15,11 +15,13 @@ app = Flask(__name__) # create the application instance :)
 def __getDatabaseConnection(db_host, db_name, db_user, db_passwd):
 	return MySQLdb.connect(db_host, db_user, db_passwd, db_name)
 
-def __logAccessAttempt(dbh, implementationId, success):
+def __logAccessAttempt(dbh, implementationId, success, request):
 	ip = "LOCAL"
-	# TODO
-	# if (os.environ.has_key("REMOTE_ADDR")):
-	# 	ip = os.environ["REMOTE_ADDR"]
+
+	if 'X-Forwarded-For' in request.headers:
+		ip = request.headers.getlist("X-Forwarded-For")[0].rpartition(' ')[-1]
+    else:
+		ip = request.remote_addr or 'untrackable'
 
 	cursor = dbh.cursor()
 	cursor.execute("""INSERT INTO access_log
@@ -31,6 +33,10 @@ def __logAccessAttempt(dbh, implementationId, success):
 	cursor.close()
 	dbh.commit()
 
+@app.errorhandler(500)
+def catch_server_errors(e):
+    app.logger.error("Unexpected exception")
+    app.logger.exception(e)
 
 @app.route("/ping", methods=['GET'])
 def ping():
@@ -48,52 +54,47 @@ def post_implementation():
 	elif '^' in implementationId or '|' in implementationId:
 		abort(400, description="The implementation id contains the invalid character: '^|'")
 	else:
-		try:
-			db_host = os.environ["DB_HOST"]
-			db_user = os.environ["DB_USERNAME"]
-			db_passwd = os.environ["DB_PASSWORD"]
-			db_name = os.environ["DB_NAME"]
+		db_host = os.environ["DB_HOST"]
+		db_user = os.environ["DB_USERNAME"]
+		db_passwd = os.environ["DB_PASSWORD"]
+		db_name = os.environ["DB_NAME"]
 
-			dbh = __getDatabaseConnection(db_host, db_name, db_user, db_passwd)
+		dbh = __getDatabaseConnection(db_host, db_name, db_user, db_passwd)
 
-			cursor=dbh.cursor()
-			cursor.execute("""
-					SELECT
-						implementation_id,
-						description,
-						passphrase
-					FROM
-						implementation_id
-					WHERE
-						implementation_id = %s """, (implementationId,))
+		cursor=dbh.cursor()
+		cursor.execute("""
+				SELECT
+					implementation_id,
+					description,
+					passphrase
+				FROM
+					implementation_id
+				WHERE
+					implementation_id = %s """, (implementationId,))
 
-			row = cursor.fetchone()
+		row = cursor.fetchone()
+		cursor.close();
+
+		# no row was found with this implementation id.  they are unique.  insert them into the database
+		if row == None:
+			cursor = dbh.cursor();
+			hashed_passphrase = bcrypt.hashpw(passphrase.encode('UTF_8'), bcrypt.gensalt())
+			cursor.execute("INSERT INTO implementation_id (implementation_id, description, passphrase) VALUES (%s, %s, %s)",
+							(implementationId, description, hashed_passphrase))
 			cursor.close();
-
-			# no row was found with this implementation id.  they are unique.  insert them into the database
-			if row == None:
-				__logAccessAttempt(dbh, implementationId, 1)
-				cursor = dbh.cursor();
-				hashed_passphrase = bcrypt.hashpw(passphrase, bcrypt.gensalt())
-				cursor.execute("INSERT INTO implementation_id (implementation_id, description, passphrase) VALUES (%s, %s, %s)",
-								(implementationId, description, hashed_passphrase))
-				cursor.close();
-				dbh.commit();
-
-				return 'Success creating ' +  description
+			dbh.commit();
+			__logAccessAttempt(dbh, implementationId, 1, request)
+			return 'Success creating ' +  description
+		else:
+			# there was a hit, check the passphrase against what was given
+			if bcrypt.checkpw(passphrase.encode('UTF_8'), row[2]):
+				__logAccessAttempt(dbh, implementationId, 1, request)
+				return 'Success recovering ' + row[1]
 			else:
-				# there was a hit, check the passphrase against what was given
-				if bcrypt.checkpw(passphrase, row[2]):
-					__logAccessAttempt(dbh, implementationId, 1)
-					return 'Success recovering ' + row[1]
-				else:
-					# invalid passphrase.  Just print the current description
-					__logAccessAttempt(dbh, implementationId, 0)
-					abort(403, description="Invalid passphrase")
+				# invalid passphrase.  Just print the current description
+				__logAccessAttempt(dbh, implementationId, 0, request)
+				abort(403, description="Invalid implementationid or passphrase")
 
-		except Exception, e:
-			app.logger.exception(e)
-			abort(500, description="Unexpected exception: " + str(e))
 
 		# close connection and we're done
 		dbh.close()
