@@ -39,7 +39,17 @@ $ curl localhost:8000/ping
 
 ```
 
-You can open `test/implementationidtest.html` in a browser and submit requests. 
+You can open `test/implementationidtest.html` in a browser to submit requests to your local server.
+
+To test it from the command line:
+```
+# local server
+$ ./test/post-request.sh <implementationId> <description> <passphrase>
+
+# remote server
+$ ./test/post-request.sh <implementationId> <description> <passphrase> https://implementation.openmrs.org
+```
+
 
 ```
 # to power off and delete data
