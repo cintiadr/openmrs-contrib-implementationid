@@ -1,10 +1,13 @@
 # Implementation ID
 
-<https://wiki.openmrs.org/x/wREz>
-
 This application is used to generate an ImplementationId.
 
-The code already existed; it was just migrated to Flask and dockerised to be deployed in Jetstream.
+
+Description: <https://wiki.openmrs.org/x/wREz>
+
+CI build: <https://ci.openmrs.org/browse/II-II>
+
+Docker image: <https://hub.docker.com/r/openmrs/implementation-id/tags/>
 
 
 ## Implementation details
