@@ -41,7 +41,7 @@ def catch_server_errors(e):
 def ping():
 	return 'Hello, World!\n'
 
-@app.route("/tools/implementationid", methods=['POST'])
+@app.route("/", methods=['POST'])
 def post_implementation():
 
 	implementationId = request.form["implementationId"]
